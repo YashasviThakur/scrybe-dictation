@@ -7,6 +7,8 @@ export class WavRecorder {
   private audioContext: AudioContext | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private processor: ScriptProcessorNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private analyserBuffer: Uint8Array<ArrayBuffer> | null = null;
   private stream: MediaStream | null = null;
   private chunks: Float32Array[] = [];
   private sampleRate = SAMPLE_RATE;
@@ -32,6 +34,10 @@ export class WavRecorder {
     const silentGain = this.audioContext.createGain();
     silentGain.gain.value = 0;
 
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.analyserBuffer = new Uint8Array(this.analyser.frequencyBinCount);
+
     this.processor.onaudioprocess = (e) => {
       if (this.stopped) return;
       this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
@@ -40,6 +46,7 @@ export class WavRecorder {
     this.source.connect(this.processor);
     this.processor.connect(silentGain);
     silentGain.connect(this.audioContext.destination);
+    this.source.connect(this.analyser);
 
     this.stopped = false;
     this.startedAt = Date.now();
@@ -53,10 +60,23 @@ export class WavRecorder {
     }, 200);
   }
 
+  /** Current mic input level, 0-1, for driving a live waveform. */
+  getLevel(): number {
+    if (!this.analyser || !this.analyserBuffer) return 0;
+    this.analyser.getByteTimeDomainData(this.analyserBuffer);
+    let sumSquares = 0;
+    for (let i = 0; i < this.analyserBuffer.length; i++) {
+      const centered = (this.analyserBuffer[i] - 128) / 128;
+      sumSquares += centered * centered;
+    }
+    return Math.min(1, Math.sqrt(sumSquares / this.analyserBuffer.length) * 4);
+  }
+
   stop(): Blob {
     this.stopped = true;
     if (this.tickInterval) clearInterval(this.tickInterval);
     this.processor?.disconnect();
+    this.analyser?.disconnect();
     this.source?.disconnect();
     this.stream?.getTracks().forEach((t) => t.stop());
     void this.audioContext?.close();

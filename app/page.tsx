@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { WavRecorder, MAX_SECONDS } from "@/lib/recorder";
-import { PRESETS, LANGUAGES } from "@/lib/presets";
+import { PRESETS, LANGUAGES, type Preset } from "@/lib/presets";
 
 type DictateResponse = {
   text?: string;
@@ -33,17 +33,21 @@ export default function Home() {
   const [context, setContext] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DictateResponse | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const recorderRef = useRef<WavRecorder | null>(null);
+
+  // Runs client-only, after hydration, to avoid a server/client mismatch
+  // (the server always renders an empty history since localStorage doesn't exist there).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from an external store (localStorage) on mount, not derived state
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {
+      // ignore corrupt local storage
+    }
+  }, []);
 
   const saveHistory = (entries: HistoryEntry[]) => {
     setHistory(entries);
@@ -139,61 +143,73 @@ export default function Home() {
   const remaining = Math.max(0, MAX_SECONDS - seconds);
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col">
-      <header className="border-b border-zinc-800 px-6 py-5 flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Scrybe</h1>
-          <p className="text-sm text-zinc-500 max-w-md">
-            Ramble however you want. Get back the exact document you needed — not just a cleaner transcript.
-          </p>
+    <div className="min-h-screen flex flex-col bg-[var(--ink)]">
+      <header className="border-b border-[var(--ink-line)]">
+        <div className="max-w-5xl mx-auto px-6 py-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display italic text-3xl text-[var(--text-primary)] tracking-tight">Scrybe</h1>
+            <p className="text-sm text-[var(--text-muted)] max-w-md mt-1 leading-relaxed">
+              Ramble however you want. Get back the exact document you needed — not just a cleaner transcript.
+            </p>
+          </div>
+          <a
+            href="https://www.assemblyai.com/docs/dictation"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-[var(--text-faint)] hover:text-[var(--brass)] underline underline-offset-4 shrink-0 mt-1"
+          >
+            Built on the AssemblyAI Dictation API ↗
+          </a>
         </div>
-        <a
-          href="https://www.assemblyai.com/docs/dictation"
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-4 shrink-0"
-        >
-          Built on the AssemblyAI Dictation API ↗
-        </a>
       </header>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 grid gap-8 lg:grid-cols-[280px_1fr]">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 grid gap-10 lg:grid-cols-[260px_1fr]">
         {/* Controls */}
-        <aside className="space-y-6">
+        <aside className="space-y-8">
           <div>
-            <label className="block text-xs uppercase tracking-wide text-zinc-500 mb-1">Shape it as</label>
-            <p className="text-xs text-zinc-600 mb-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-faint)]">
+              Shape it as
+            </span>
+            <p className="text-xs text-[var(--text-muted)] mt-1.5 mb-3 leading-relaxed">
               Same rambling speech, restructured into a different document — not just cleaned up.
             </p>
-            <div className="space-y-1.5">
+            <div className="flex flex-col">
               {PRESETS.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPresetId(p.id)}
                   disabled={status !== "idle"}
-                  className={`w-full text-left rounded-lg border px-3 py-2 transition disabled:opacity-50 ${
+                  className={`text-left px-3 py-2.5 border-l-2 transition disabled:opacity-40 ${
                     presetId === p.id
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-zinc-800 hover:border-zinc-700"
+                      ? "border-l-[var(--brass)] bg-[var(--ink-panel-raised)]"
+                      : "border-l-transparent hover:border-l-[var(--ink-line)] hover:bg-[var(--ink-panel)]"
                   }`}
                 >
-                  <div className="text-sm font-medium">{p.label}</div>
-                  <div className="text-xs text-zinc-500">{p.description}</div>
+                  <div
+                    className={`text-sm font-medium ${
+                      presetId === p.id ? "text-[var(--brass)]" : "text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {p.label}
+                  </div>
+                  <div className="text-xs text-[var(--text-faint)] mt-0.5">{p.description}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wide text-zinc-500 mb-2">Language</label>
+            <label className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-faint)] mb-1.5">
+              Language
+            </label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               disabled={status !== "idle"}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50"
+              className="w-full bg-transparent border-b border-[var(--ink-line)] focus:border-[var(--brass)] text-sm text-[var(--text-primary)] py-1.5 outline-none disabled:opacity-40"
             >
               {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
+                <option key={l.code} value={l.code} className="bg-[var(--ink-panel)]">
                   {l.label}
                 </option>
               ))}
@@ -201,101 +217,113 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wide text-zinc-500 mb-2">
-              Key terms <span className="normal-case text-zinc-600">(optional, comma separated)</span>
+            <label className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-faint)] mb-1.5">
+              Key terms <span className="normal-case text-[var(--text-faint)]/70">(optional)</span>
             </label>
             <input
               value={keyterms}
               onChange={(e) => setKeyterms(e.target.value)}
               disabled={status !== "idle"}
-              placeholder="e.g. AssemblyAI, Scrybe, Luma"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 placeholder:text-zinc-700"
+              placeholder="AssemblyAI, Scrybe, Luma"
+              className="w-full bg-transparent border-b border-[var(--ink-line)] focus:border-[var(--brass)] text-sm text-[var(--text-primary)] py-1.5 outline-none disabled:opacity-40 placeholder:text-[var(--text-faint)]"
             />
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wide text-zinc-500 mb-2">
-              Context <span className="normal-case text-zinc-600">(optional)</span>
+            <label className="block font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-faint)] mb-1.5">
+              Context <span className="normal-case text-[var(--text-faint)]/70">(optional)</span>
             </label>
             <input
               value={context}
               onChange={(e) => setContext(e.target.value)}
               disabled={status !== "idle"}
-              placeholder="e.g. dictating a doctor's visit note"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 placeholder:text-zinc-700"
+              placeholder="dictating a doctor's visit note"
+              className="w-full bg-transparent border-b border-[var(--ink-line)] focus:border-[var(--brass)] text-sm text-[var(--text-primary)] py-1.5 outline-none disabled:opacity-40 placeholder:text-[var(--text-faint)]"
             />
           </div>
         </aside>
 
         {/* Main panel */}
-        <section className="space-y-6">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8 flex flex-col items-center gap-4">
+        <section className="space-y-8">
+          <div className="border border-[var(--ink-line)] bg-[var(--ink-panel)] p-10 flex flex-col items-center gap-5">
             <button
               onClick={handleMicClick}
               disabled={status === "processing"}
-              className={`h-20 w-20 rounded-full flex items-center justify-center transition disabled:opacity-60 ${
-                status === "recording"
-                  ? "bg-red-500 animate-pulse shadow-[0_0_0_8px_rgba(239,68,68,0.15)]"
-                  : "bg-emerald-500 hover:bg-emerald-400"
-              }`}
               aria-label={status === "recording" ? "Stop recording" : "Start recording"}
+              className={`relative h-24 w-24 rounded-full flex items-center justify-center transition-transform active:scale-95 disabled:opacity-60 ${
+                status === "recording" ? "bg-[var(--seal)]" : "bg-[var(--brass)] hover:brightness-110"
+              }`}
+              style={status === "recording" ? { boxShadow: "0 0 0 10px var(--seal-glow)" } : undefined}
             >
               {status === "processing" ? (
-                <span className="text-xs font-medium text-black">...</span>
+                <span className="h-3 w-3 rounded-full bg-[var(--ink)] animate-ping" />
               ) : status === "recording" ? (
-                <span className="h-5 w-5 rounded-sm bg-white" />
+                <span className="h-5 w-5 rounded-sm bg-[var(--ink)]" />
               ) : (
                 <MicIcon />
               )}
             </button>
-            <div className="text-sm text-zinc-400">
-              {status === "recording" && (
-                <span>
-                  Recording — {seconds.toFixed(1)}s{" "}
-                  <span className={remaining < 15 ? "text-red-400" : ""}>({remaining.toFixed(0)}s left)</span>
+
+            <div className="h-12 flex items-center justify-center">
+              {status === "recording" ? (
+                <Waveform recorderRef={recorderRef} active />
+              ) : (
+                <span className="font-mono text-xs text-[var(--text-faint)]">
+                  {status === "processing" ? "Transcribing…" : `Tap to dictate — max ${MAX_SECONDS}s`}
                 </span>
               )}
-              {status === "processing" && <span>Transcribing…</span>}
-              {status === "idle" && <span>Tap to dictate (max {MAX_SECONDS}s)</span>}
             </div>
+
+            {status === "recording" && (
+              <div className="font-mono text-xs text-[var(--text-muted)]">
+                {seconds.toFixed(1)}s{" "}
+                <span className={remaining < 15 ? "text-[var(--seal)]" : ""}>({remaining.toFixed(0)}s left)</span>
+              </div>
+            )}
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+            <div className="border-l-2 border-[var(--seal)] bg-[var(--ink-panel)] px-4 py-3 text-sm text-[var(--text-primary)]">
               {error}
             </div>
           )}
 
-          {result && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ResultCard title="What you said" text={result.text ?? ""} onCopy={copy} />
-              <ResultCard
-                title={`What you needed — ${activePreset.label}`}
-                text={result.llm_response ?? result.llm_error ?? ""}
-                onCopy={copy}
-                accent
-              />
-            </div>
-          )}
+          {result &&
+            (activePreset.id === "verbatim" ? (
+              <div className="max-w-md">
+                <VerbatimSlip text={result.text ?? ""} onCopy={copy} />
+              </div>
+            ) : (
+              <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2 items-start">
+                <VerbatimSlip text={result.text ?? ""} onCopy={copy} />
+                <DocumentCard
+                  preset={activePreset}
+                  text={result.llm_response ?? result.llm_error ?? ""}
+                  onCopy={copy}
+                />
+              </div>
+            ))}
 
           {history.length > 0 && (
             <div>
-              <h2 className="text-xs uppercase tracking-wide text-zinc-500 mb-2">History</h2>
-              <ul className="space-y-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-faint)]">
+                History
+              </span>
+              <ul className="mt-2 border-t border-[var(--ink-line)]">
                 {history.map((h) => (
                   <li
                     key={h.id + h.timestamp}
-                    className="rounded-lg border border-zinc-800 px-3 py-2 text-sm flex items-start justify-between gap-3"
+                    className="py-2.5 border-b border-[var(--ink-line)] flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0">
-                      <div className="text-xs text-zinc-500 mb-0.5">
+                      <div className="font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--text-faint)] mb-0.5">
                         {h.presetLabel} · {new Date(h.timestamp).toLocaleTimeString()}
                       </div>
-                      <div className="truncate text-zinc-300">{h.rewrite || h.verbatim}</div>
+                      <div className="truncate text-sm text-[var(--text-muted)]">{h.rewrite || h.verbatim}</div>
                     </div>
                     <button
                       onClick={() => copy(h.rewrite || h.verbatim)}
-                      className="shrink-0 text-xs text-zinc-500 hover:text-zinc-300"
+                      className="shrink-0 font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--text-faint)] hover:text-[var(--brass)]"
                     >
                       Copy
                     </button>
@@ -310,33 +338,103 @@ export default function Home() {
   );
 }
 
-function ResultCard({
-  title,
-  text,
-  onCopy,
-  accent,
-}: {
-  title: string;
-  text: string;
-  onCopy: (t: string) => void;
-  accent?: boolean;
-}) {
+function VerbatimSlip({ text, onCopy }: { text: string; onCopy: (t: string) => void }) {
   return (
-    <div className={`rounded-xl border p-4 ${accent ? "border-emerald-800 bg-emerald-500/5" : "border-zinc-800 bg-zinc-950"}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs uppercase tracking-wide text-zinc-500">{title}</h3>
-        <button onClick={() => onCopy(text)} className="text-xs text-zinc-500 hover:text-zinc-300">
+    <div className="rise-in bg-[var(--slip)] text-[var(--slip-text)] p-5 shadow-[0_10px_28px_rgba(0,0,0,0.4)] -rotate-[0.5deg]">
+      <div className="flex items-center justify-between mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--slip-muted)]">
+        <span>What you said</span>
+        <button onClick={() => onCopy(text)} className="hover:text-[var(--slip-text)] underline underline-offset-2">
           Copy
         </button>
       </div>
-      <p className="text-sm text-zinc-200 whitespace-pre-wrap min-h-[2.5rem]">{text || "—"}</p>
+      <p className="font-mono text-sm leading-relaxed whitespace-pre-wrap min-h-[3rem]">{text || "—"}</p>
     </div>
   );
 }
 
+function DocumentCard({ preset, text, onCopy }: { preset: Preset; text: string; onCopy: (t: string) => void }) {
+  const dateline = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const subject = preset.showSubject ? deriveSubject(text) : null;
+
+  return (
+    <div
+      style={{ animationDelay: "120ms" }}
+      className={`rise-in bg-[var(--parchment)] text-[var(--parchment-text)] p-6 shadow-[0_10px_28px_rgba(0,0,0,0.4)] rotate-[0.4deg] ${
+        preset.texture === "ruled" ? "ruled-paper" : preset.texture === "grid" ? "grid-paper" : ""
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-display italic text-lg">{preset.letterhead}</span>
+        <button
+          onClick={() => onCopy(text)}
+          className="font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--parchment-muted)] hover:text-[var(--parchment-text)] underline underline-offset-2"
+        >
+          Copy
+        </button>
+      </div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--parchment-muted)] mb-3">
+        {dateline}
+        {subject && <> · Re: {subject}</>}
+      </div>
+      <div className="h-px bg-[var(--parchment-line)] mb-3" />
+      <p className="font-display text-[15px] leading-relaxed whitespace-pre-wrap min-h-[3rem]">{text || "—"}</p>
+    </div>
+  );
+}
+
+function deriveSubject(text: string): string {
+  const firstSentence = text.split(/[.!?\n]/)[0]?.trim() ?? "";
+  const words = firstSentence.split(/\s+/).filter(Boolean).slice(0, 8).join(" ");
+  return words || "Untitled";
+}
+
+function Waveform({
+  recorderRef,
+  active,
+}: {
+  recorderRef: RefObject<WavRecorder | null>;
+  active: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const levelsRef = useRef<number[]>(new Array(32).fill(0.06));
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const recorder = recorderRef.current;
+    if (!active || !recorder || !canvas || !ctx) return;
+
+    const draw = () => {
+      const level = recorder.getLevel();
+      const levels = levelsRef.current;
+      levels.shift();
+      levels.push(Math.max(0.06, level));
+
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+      const barWidth = width / levels.length;
+      levels.forEach((l, i) => {
+        const barHeight = Math.max(3, l * height);
+        ctx.fillStyle = "#c6a33d";
+        ctx.fillRect(i * barWidth + barWidth * 0.25, (height - barHeight) / 2, barWidth * 0.5, barHeight);
+      });
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    rafRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [active, recorderRef]);
+
+  return <canvas ref={canvasRef} width={240} height={48} className="block" aria-hidden="true" />;
+}
+
 function MicIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-black">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-[var(--ink)]">
       <path
         d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z"
         stroke="currentColor"

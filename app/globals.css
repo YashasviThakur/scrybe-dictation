@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #14120f;
+  --ink-panel: #201c16;
+  --ink-panel-raised: #2a2419;
+  --ink-line: #3a3427;
+  --text-primary: #f1e9d8;
+  --text-muted: #a79c87;
+  --text-faint: #6f6753;
+
+  --slip: #f5f1e6;
+  --slip-text: #2b2a26;
+  --slip-muted: #8a8271;
+
+  --parchment: #efe3c4;
+  --parchment-line: #cdb679;
+  --parchment-line-soft: rgba(205, 182, 121, 0.35);
+  --parchment-text: #2a2013;
+  --parchment-muted: #6b5a35;
+
+  --brass: #c6a33d;
+  --brass-dim: #8b7226;
+  --seal: #b23a22;
+  --seal-glow: rgba(178, 58, 34, 0.35);
+
+  --background: var(--ink);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-sans);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.ruled-paper {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    var(--parchment-line-soft) 28px
+  );
+  background-position: 0 8px;
+}
+
+.grid-paper {
+  background-image:
+    repeating-linear-gradient(to bottom, transparent, transparent 23px, var(--parchment-line-soft) 24px),
+    repeating-linear-gradient(to right, transparent, transparent 79px, var(--parchment-line-soft) 80px);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.4s ease-out both;
+}
+
+::selection {
+  background: var(--brass);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }

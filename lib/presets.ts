@@ -3,6 +3,12 @@ export type Preset = {
   label: string;
   description: string;
   instruction: string;
+  /** Letterhead shown atop the finished-document card. */
+  letterhead: string;
+  /** Paper texture for the finished-document card. */
+  texture: "plain" | "ruled" | "grid";
+  /** Whether to show an auto-derived "Re:" subject line drawn from the rewrite. */
+  showSubject?: boolean;
 };
 
 export const PRESETS: Preset[] = [
@@ -12,6 +18,8 @@ export const PRESETS: Preset[] = [
     description: "Tidy, punctuated notes with filler words removed",
     instruction:
       "Rewrite as clean, well-punctuated notes. Remove filler words and false starts but keep all factual content and the speaker's original wording where possible.",
+    letterhead: "Notes",
+    texture: "ruled",
   },
   {
     id: "email",
@@ -19,6 +27,9 @@ export const PRESETS: Preset[] = [
     description: "Polished, professional email tone",
     instruction:
       "Rewrite as a polished, professional email. Fix grammar, remove filler words, and use a friendly professional tone. Do not invent a subject line or greeting unless one was dictated.",
+    letterhead: "Draft email",
+    texture: "plain",
+    showSubject: true,
   },
   {
     id: "meeting",
@@ -26,6 +37,8 @@ export const PRESETS: Preset[] = [
     description: "Short bullet points: decisions and action items",
     instruction:
       "Rewrite as concise meeting minutes using short bullet points. Remove filler words and keep only decisions, action items, and key points.",
+    letterhead: "Meeting minutes",
+    texture: "plain",
   },
   {
     id: "soap",
@@ -33,12 +46,16 @@ export const PRESETS: Preset[] = [
     description: "Subjective / Objective / Assessment / Plan format",
     instruction:
       "Rewrite as a clinical SOAP note (Subjective, Objective, Assessment, Plan) using standard clinical documentation language. Only include sections supported by the dictated content.",
+    letterhead: "Clinical note",
+    texture: "grid",
   },
   {
     id: "verbatim",
     label: "Verbatim Only",
     description: "Exact words, no cleanup",
     instruction: "Return the transcript exactly as spoken, with no changes, corrections, or filler-word removal.",
+    letterhead: "Verbatim",
+    texture: "plain",
   },
 ];
 
